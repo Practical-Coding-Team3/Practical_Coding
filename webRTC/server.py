@@ -55,7 +55,7 @@ app = web.Application()
 webrtc_server = WebRTCServer()
 app.router.add_post("/offer", webrtc_server.offer)
 
-# server execution (8080 포트)
+# server execution (8080 port)
 if __name__ == "__main__" :
     web.run_app(app, port=8080)
 
