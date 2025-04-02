@@ -1,7 +1,7 @@
 from konlpy.tag import Okt
 
-raw_text_1 = "음...오늘 날씨 날씨가 궁금해 어디 날씨냐면 춘천 날씨 오늘 춘천 날씨가 궁금해"
-raw_text_2 = "음...내가 오늘 우산을 챙길지 고민이야. 비가 오는 지 확인해줘"
+RAW_TEXT_1 = "음...오늘 날씨 날씨가 궁금해 어디 날씨냐면 춘천 날씨 오늘 춘천 날씨가 궁금해"
+RAW_TEXT_2 = "음...내가 오늘 우산을 챙길지 고민이야. 비가 오는 지 확인해줘"
 
 def text_correction(text):
     # 불필요한 문자
@@ -23,5 +23,5 @@ def text_correction(text):
     return query
 
 if __name__ == "__main__":
-    text = text_correction(raw_text_2)
+    text = text_correction(RAW_TEXT_1)
 
