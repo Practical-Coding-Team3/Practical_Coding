@@ -16,7 +16,7 @@ def api_request(text):
     )
     response = client.models.generate_content(
         model=MODEL_ID,
-        contents=text,
+        contents=text + ", 이모지 제거, markdown을 이용한 글 강조 제거, 제일 상단 키워드 출력",
         config=GenerateContentConfig(
             tools=[google_search_tool],
             response_modalities=["TEXT"],
