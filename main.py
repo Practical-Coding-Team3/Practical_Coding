@@ -1,4 +1,5 @@
 from crawler import crawl_url
+from summarizer import summarize_text
 
 # 수집된 URL들을 불러오는 함수
 def load_urls(file_path):
@@ -21,12 +22,20 @@ def main():
     urls = load_urls(file_path)
     print("URL list : ", urls)
     
-    # crawling test -> 일단 크롤링한 데이터 중 앞의 300 단어만
+    
     for url in urls:
         print(f"\n🔗 Crawling: {url}")
         text = crawl_url(url)
-        print(f"📄 Extracted text (first 300 chars):\n{text[:300]}\n")
+        
+        # crawling test -> 일단 크롤링한 데이터 중 앞의 300 단어만
+        print(f"📄 Extracted text (first 300 chars):\n{text[300:]}\n")
     
-    
+        # summarize test
+        summary = summarize_text(text)
+        print(f"🧠 Summary:\n{summary}")
+        print("-" * 60)
+        
+        
+        
 if __name__ == "__main__":
     main()
