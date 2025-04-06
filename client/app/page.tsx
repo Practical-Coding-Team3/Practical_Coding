@@ -1,103 +1,238 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Mic, MicOff, Activity } from "lucide-react"
+
+
+export default function AudioRecorder() {
+  const [isRecording, setIsRecording] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [status, setStatus] = useState("Ready")
+  const [countdown, setCountdown] = useState<number | null>(null)
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const socketRef = useRef<WebSocket | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+
+  // Function to update audio visualization
+  const updateAudioVisualization = () => {
+    if (analyserRef.current && isRecording) {
+      const bufferLength = analyserRef.current.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      analyserRef.current.getByteFrequencyData(dataArray)
+
+      // Calculate average volume
+      const averageVolume = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
+      // Scale to 0-100 for progress bar
+      const scaledVolume = Math.min(100, Math.max(0, averageVolume * 2))
+      setAudioLevel(scaledVolume)
+
+      animationFrameRef.current = requestAnimationFrame(updateAudioVisualization)
+    }
+  }
+
+  // Clean up animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
+
+  const startRecording = async () => {
+    try {
+      setStatus("Connecting...")
+
+      // WebSocket connection
+      const socket = new WebSocket("ws://localhost:8000/media-stream")
+      socketRef.current = socket
+
+      socket.onopen = () => {
+        setStatus("Connected")
+        console.log("✅ WebSocket Connected")
+      }
+      socket.onclose = () => {
+        setStatus("Disconnected")
+        console.log("❌ WebSocket Disconnected")
+      }
+      socket.onerror = (error) => {
+        setStatus("Error")
+        console.log("⚠️ WebSocket Error:", error)
+      }
+
+      // Get audio stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+
+      // Set up AudioContext
+      const audioContext = new AudioContext()
+      const analyser = audioContext.createAnalyser()
+      const microphone = audioContext.createMediaStreamSource(stream)
+
+      microphone.connect(analyser)
+      analyser.fftSize = 256
+      analyserRef.current = analyser
+
+      // Set up MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+        audioBitsPerSecond: 128000,
+      })
+
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+      
+      // Set recording state first before starting visualization
+      setIsRecording(true)
+      setStatus("Recording")
+
+      // Start audio visualization - calling this function here explicitly
+      animationFrameRef.current = requestAnimationFrame(updateAudioVisualization)
+
+      // Collect audio chunks
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      // Voice detection logic
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      let isSpeaking = false
+
+      const checkSilence = () => {
+        analyser.getByteFrequencyData(dataArray)
+
+        // Calculate average volume
+        const averageVolume = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
+
+        if (averageVolume < 10) {
+          // No sound
+          if (isSpeaking) {
+            // Speech stopped
+            setStatus("Silence detected")
+            silenceTimerRef.current = setTimeout(() => {
+              setStatus("Processing")
+              mediaRecorder.stop()
+              isSpeaking = false
+            }, 1500) // Changed to 1.5 seconds as per requirement
+
+            // Start countdown
+            setCountdown(1.5)
+            const startTime = Date.now()
+
+            const updateCountdown = () => {
+              const elapsed = (Date.now() - startTime) / 1000
+              const remaining = Math.max(0, 1.5 - elapsed)
+              setCountdown(remaining)
+
+              if (remaining > 0 && isSpeaking) {
+                requestAnimationFrame(updateCountdown)
+              }
+            }
+
+            requestAnimationFrame(updateCountdown)
+          }
+        } else {
+          // Speaking
+          isSpeaking = true
+          setStatus("Recording")
+          setCountdown(null)
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current)
+            silenceTimerRef.current = null
+          }
+        }
+      }
+
+      // Start recording
+      mediaRecorder.start(100)
+
+      // Check voice periodically (every 100ms)
+      const silenceCheckInterval = setInterval(checkSilence, 100)
+
+      // Handle recording stop
+      mediaRecorder.onstop = async () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+          animationFrameRef.current = null
+        }
+
+        clearInterval(silenceCheckInterval)
+        setCountdown(null)
+
+        if (audioChunksRef.current.length > 0) {
+          setStatus("Sending to server")
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+          const arrayBuffer = await audioBlob.arrayBuffer()
+
+          console.log(`📤 Sending ${arrayBuffer.byteLength} bytes to server`)
+          socket.send(arrayBuffer)
+
+          // Explicitly close socket after data transmission
+          socket.close()
+        }
+
+        // Clean up resources
+        stream.getTracks().forEach((track) => track.stop())
+        audioContext.close()
+
+        setIsRecording(false)
+        setAudioLevel(0)
+        setStatus("Ready")
+      }
+    } catch (error) {
+      console.error("Error starting recording:", error)
+      setIsRecording(false)
+      setStatus("Error")
+    }
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Voice Recorder</CardTitle>
+          <CardDescription>
+            Press the button and speak. Recording will be sent after 1.5 seconds of silence.
+          </CardDescription>
+        </CardHeader>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <CardContent className="flex flex-col items-center gap-2">
+          <div className="relative w-32 h-32 flex items-center justify-center">
+            <div
+              className={`absolute inset-0 rounded-full ${isRecording ? "bg-red-100 animate-pulse" : "bg-gray-100"}`}
+            ></div>
+            <Button
+              onClick={startRecording}
+              disabled={isRecording}
+              className={`relative z-10 w-24 h-24 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-emerald-500 hover:bg-emerald-600"}`}
+            >
+              {isRecording ? <MicOff className="h-10 w-10 text-white" /> : <Mic className="h-10 w-10 text-white" />}
+            </Button>
+          </div>
+
+         
+
+          
+        </CardContent>
+
+        <CardFooter className="flex justify-center border-t pt-4">
+          <p className="text-xs text-gray-500 text-center">
+            {isRecording
+              ? "Speak now. Recording will automatically stop after silence."
+              : "Click the button to start recording"}
+          </p>
+        </CardFooter>
+      </Card>
     </div>
-  );
+  )
 }
