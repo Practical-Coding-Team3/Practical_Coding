@@ -219,10 +219,6 @@ export default function AudioRecorder() {
               {isRecording ? <MicOff className="h-10 w-10 text-white" /> : <Mic className="h-10 w-10 text-white" />}
             </Button>
           </div>
-
-         
-
-          
         </CardContent>
 
         <CardFooter className="flex justify-center border-t pt-4">
