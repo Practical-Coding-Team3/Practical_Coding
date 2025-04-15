@@ -20,22 +20,23 @@ def load_urls(file_path):
 def main():
     file_path = 'url.txt'
     urls = load_urls(file_path)
-    print("URL list : ", urls)
-    
+    print("✅ Loaded URLs:")
+    for url in urls:
+        print(f" - {url}")
+        
+    print("\n🚀 크롤링 전체 본문 확인:")
     
     for url in urls:
         print(f"\n🔗 Crawling: {url}")
-        text = crawl_url(url)
+        body_text, image_url = crawl_url(url)
         
-        # crawling test -> 일단 크롤링한 데이터 중 앞의 300 단어만
-        print(f"📄 Extracted text (first 300 chars):\n{text[300:]}\n")
-    
-        # summarize test
-        summary = summarize_text(text)
-        print(f"🧠 Summary:\n{summary}")
-        print("-" * 60)
-        
-        
-        
+        # 대표 이미지가 있는 경우 출력
+        print(f"🖼️  Image: {image_url if image_url else '(없음)'}")
+
+        # 🔽 전체 본문 출력
+        print("📄 Extracted Full Text:\n")
+        print(body_text)
+        print("\n" + "="*100 + "\n")
+               
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 # pip install -r requirements.txt
-
-request
 beautifulsoup4
+requests
 python-dotenv
 google-enerativeai
+lxml
+html5lib

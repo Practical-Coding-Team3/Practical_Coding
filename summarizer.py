@@ -27,7 +27,7 @@ def summarize_text(text):
     try:
         # 요약 prompt 구성: 지시어 + 본문
         prompt = f"""
-        다음 글을 핵심만 간결하게 요약해 주세요: 
+        다음 글을 핵심만 간결하게 3줄로 요약해 주세요, 3줄을 나타낼 때 번호를 매겨서 해주세요: 
         
         {text}
         
@@ -37,7 +37,7 @@ def summarize_text(text):
         # Gemini API에 prompt를 전달하여 응답 받기
         response = model.generate_content(prompt)
         
-        # 응답에서 텍스트만 추출해 반환
+        # 응답에서 텍스트만 추출해 반환 
         return response.text.strip()
     
     except Exception as e:
