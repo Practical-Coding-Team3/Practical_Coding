@@ -1,17 +1,17 @@
-import asyncio
-import os
-from aiohttp import web
-import io
-import wave
-from pydub import AudioSegment
-import time
-import torch
-import whisper
-from socket_handler import handle_media_stream
+from fastapi import FastAPI
+from routers import text_api
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 Origin 허용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP Method 허용
+    allow_headers=["*"],  # 모든 HTTP Header 허용
+)
 
 
-app = web.Application()
-app.add_routes([web.get("/media-stream", handle_media_stream)])
+app.include_router(text_api.router)
 
-if __name__ == "__main__":
-    web.run_app(app, port=8000) 

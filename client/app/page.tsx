@@ -1,234 +1,220 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import type React from "react"
+import axios from "axios"
+import { useState, useRef } from "react"
+import { Search, Loader2, ArrowRight, Clock, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, MicOff, Activity } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { motion, AnimatePresence } from "framer-motion"
 
 
-export default function AudioRecorder() {
-  const [isRecording, setIsRecording] = useState(false)
-  const [audioLevel, setAudioLevel] = useState(0)
-  const [status, setStatus] = useState("Ready")
-  const [countdown, setCountdown] = useState<number | null>(null)
+export default function SearchBrowser() {
+  const [query, setQuery] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null) // React에서는 이렇게!
+  const [hasSearched, setHasSearched] = useState(false)
+  const [results, setResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [recentSearches] = useState(["인공지능", "웹 개발", "React", "Next.js"])
+  const [trendingSearches] = useState(["최신 기술", "프로그래밍 언어", "디자인 트렌드", "AI 개발"])
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const socketRef = useRef<WebSocket | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const animationFrameRef = useRef<number | null>(null)
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!query.trim()) return
 
-  // Function to update audio visualization
-  const updateAudioVisualization = () => {
-    if (analyserRef.current && isRecording) {
-      const bufferLength = analyserRef.current.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-      analyserRef.current.getByteFrequencyData(dataArray)
+    setIsSearching(true)
+   
+    const response = await axios.post("http://localhost:8000/text", { text: query });
+  
 
-      // Calculate average volume
-      const averageVolume = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
-      // Scale to 0-100 for progress bar
-      const scaledVolume = Math.min(100, Math.max(0, averageVolume * 2))
-      setAudioLevel(scaledVolume)
 
-      animationFrameRef.current = requestAnimationFrame(updateAudioVisualization)
-    }
+    // 검색 효과를 위한 타임아웃
+    setTimeout(() => {
+      // 가상 검색 결과
+      const mockResults = [
+        {
+          id: 1,
+         
+          description: "이것은 첫 번째 검색 결과입니다. 여기에는 검색어와 관련된 자세한 정보가 표시됩니다.",
+          url: "https://example.com/result1",
+          category: "웹사이트",
+        },
+        {
+          id: 2,
+    
+          description:
+            "두 번째 검색 결과에는 더 많은 정보와 관련 링크가 포함되어 있습니다. 사용자가 원하는 정보를 쉽게 찾을 수 있도록 도와줍니다.",
+          url: "https://example.com/result2",
+          category: "블로그",
+        },
+        {
+          id: 3,
+          description:
+            "세 번째 검색 결과는 사용자의 검색어와 가장 관련성이 높은 정보를 제공합니다. 여기에는 자세한 설명과 함께 유용한 링크가 포함되어 있습니다.",
+          url: "https://example.com/result3",
+          category: "뉴스",
+        },
+        {
+          id: 4,
+          description:
+            "네 번째 검색 결과는 사용자가 찾고 있는 정보에 대한 추가적인 내용을 제공합니다. 이 결과는 검색어와 관련된 다양한 측면을 다룹니다.",
+          url: "https://example.com/result4",
+          category: "포럼",
+        },
+        {
+          id: 5,
+          description:
+            "다섯 번째 검색 결과는 사용자의 검색어와 관련된 최신 정보를 제공합니다. 이 결과는 최근에 업데이트된 내용을 포함하고 있습니다.",
+          url: "https://example.com/result5",
+          category: "학술자료",
+        },
+        {
+          id: 6,
+          description:
+            "여섯 번째 검색 결과는 사용자의 검색어와 관련된 심층적인 분석을 제공합니다. 이 결과는 주제에 대한 깊이 있는 이해를 원하는 사용자에게 유용합니다.",
+          url: "https://example.com/result6",
+          category: "비디오",
+        },
+      ]
+
+      setResults(mockResults)
+      setHasSearched(true)
+      setIsSearching(false)
+    }, 800) // 검색 효과를 위한 지연 시간
   }
 
-  // Clean up animation frame on unmount
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [])
 
-  const startRecording = async () => {
-    try {
-      setStatus("Connecting...")
 
-      // WebSocket connection
-      const socket = new WebSocket("ws://localhost:8000/media-stream")
-      socketRef.current = socket
-
-      socket.onopen = () => {
-        setStatus("Connected")
-        console.log("✅ WebSocket Connected")
-      }
-      socket.onclose = () => {
-        setStatus("Disconnected")
-        console.log("❌ WebSocket Disconnected")
-      }
-      socket.onerror = (error) => {
-        setStatus("Error")
-        console.log("⚠️ WebSocket Error:", error)
-      }
-
-      // Get audio stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
-
-      // Set up AudioContext
-      const audioContext = new AudioContext()
-      const analyser = audioContext.createAnalyser()
-      const microphone = audioContext.createMediaStreamSource(stream)
-
-      microphone.connect(analyser)
-      analyser.fftSize = 256
-      analyserRef.current = analyser
-
-      // Set up MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-        audioBitsPerSecond: 128000,
-      })
-
-      mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
-      
-      // Set recording state first before starting visualization
-      setIsRecording(true)
-      setStatus("Recording")
-
-      // Start audio visualization - calling this function here explicitly
-      animationFrameRef.current = requestAnimationFrame(updateAudioVisualization)
-
-      // Collect audio chunks
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data)
-        }
-      }
-
-      // Voice detection logic
-      const bufferLength = analyser.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-      let isSpeaking = false
-
-      const checkSilence = () => {
-        analyser.getByteFrequencyData(dataArray)
-
-        // Calculate average volume
-        const averageVolume = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
-
-        if (averageVolume < 10) {
-          // No sound
-          if (isSpeaking) {
-            // Speech stopped
-            setStatus("Silence detected")
-            silenceTimerRef.current = setTimeout(() => {
-              setStatus("Processing")
-              mediaRecorder.stop()
-              isSpeaking = false
-            }, 1500) // Changed to 1.5 seconds as per requirement
-
-            // Start countdown
-            setCountdown(1.5)
-            const startTime = Date.now()
-
-            const updateCountdown = () => {
-              const elapsed = (Date.now() - startTime) / 1000
-              const remaining = Math.max(0, 1.5 - elapsed)
-              setCountdown(remaining)
-
-              if (remaining > 0 && isSpeaking) {
-                requestAnimationFrame(updateCountdown)
-              }
-            }
-
-            requestAnimationFrame(updateCountdown)
-          }
-        } else {
-          // Speaking
-          isSpeaking = true
-          setStatus("Recording")
-          setCountdown(null)
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current)
-            silenceTimerRef.current = null
-          }
-        }
-      }
-
-      // Start recording
-      mediaRecorder.start(100)
-
-      // Check voice periodically (every 100ms)
-      const silenceCheckInterval = setInterval(checkSilence, 100)
-
-      // Handle recording stop
-      mediaRecorder.onstop = async () => {
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current)
-          animationFrameRef.current = null
-        }
-
-        clearInterval(silenceCheckInterval)
-        setCountdown(null)
-
-        if (audioChunksRef.current.length > 0) {
-          setStatus("Sending to server")
-          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-          const arrayBuffer = await audioBlob.arrayBuffer()
-
-          console.log(`📤 Sending ${arrayBuffer.byteLength} bytes to server`)
-          socket.send(arrayBuffer)
-
-          // Explicitly close socket after data transmission
-          socket.close()
-        }
-
-        // Clean up resources
-        stream.getTracks().forEach((track) => track.stop())
-        audioContext.close()
-
-        setIsRecording(false)
-        setAudioLevel(0)
-        setStatus("Ready")
-      }
-    } catch (error) {
-      console.error("Error starting recording:", error)
-      setIsRecording(false)
-      setStatus("Error")
-    }
-  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Voice Recorder</CardTitle>
-          <CardDescription>
-            Press the button and speak. Recording will be sent after 1.5 seconds of silence.
-          </CardDescription>
-        </CardHeader>
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 transition-all duration-300">
+      <div className="max-w-5xl mx-auto">
+        <div
+          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${
+            hasSearched ? "pt-4" : "pt-[25vh]"
+          }`}
+        >
+          {!hasSearched && (
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                웹 검색
+              </h1>
+              <p className="text-slate-600 dark:text-slate-300">원하는 정보를 빠르게 찾아보세요</p>
+            </motion.div>
+          )}
 
-        <CardContent className="flex flex-col items-center gap-2">
-          <div className="relative w-32 h-32 flex items-center justify-center">
-            <div
-              className={`absolute inset-0 rounded-full ${isRecording ? "bg-red-100 animate-pulse" : "bg-gray-100"}`}
-            ></div>
-            <Button
-              onClick={startRecording}
-              disabled={isRecording}
-              className={`relative z-10 w-24 h-24 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-emerald-500 hover:bg-emerald-600"}`}
-            >
-              {isRecording ? <MicOff className="h-10 w-10 text-white" /> : <Mic className="h-10 w-10 text-white" />}
-            </Button>
-          </div>
-        </CardContent>
+          <form onSubmit={handleSearch} className="w-full">
+            <div className="relative flex gap-2 group">
+              <div className="relative flex-1">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+                  {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+                </div>
+                <Input
+                  type="text"
+                  placeholder="검색어를 입력하세요"
+                  className="w-full pl-10 h-12 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-12 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md hover:shadow-lg transition-all"
+                disabled={isSearching}
+              >
+                {isSearching ? "검색 중..." : "검색"}
+              </Button>
+            </div>
+          </form>
 
-        <CardFooter className="flex justify-center border-t pt-4">
-          <p className="text-xs text-gray-500 text-center">
-            {isRecording
-              ? "Speak now. Recording will automatically stop after silence."
-              : "Click the button to start recording"}
-          </p>
-        </CardFooter>
-      </Card>
-    </div>
+          {!hasSearched && (
+            <div className="mt-8">
+              <div className="mb-6">
+                <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-2">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span>최근 검색어</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recentSearches.map((term, index) => (
+                    <button
+                      key={index}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 rounded-full text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setQuery(term)
+                        handleSearch(new Event("submit") as any)
+                      }}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-2">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  <span>인기 검색어</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {trendingSearches.map((term, index) => (
+                    <button
+                      key={index}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 rounded-full text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setQuery(term)
+                        handleSearch(new Event("submit") as any)
+                      }}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {hasSearched && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                  "{query}"에 대한 검색 결과 {results.length}개
+                </p>
+
+                {results.map((result, index) => (
+                  <motion.div
+                    key={result.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all border border-slate-100 dark:border-slate-700"
+                  >
+                    <div className="flex items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-100 rounded-full">
+                            {result.category}
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{result.url}</span>
+                        </div>
+                        <h2 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">{result.title}</h2>
+                        <p className="text-slate-600 dark:text-slate-300 text-sm">{result.description}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="ml-2 text-slate-400 hover:text-purple-600 dark:text-slate-500 dark:hover:text-purple-400"
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                        <span className="sr-only">방문하기</span>
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </main>
   )
 }
