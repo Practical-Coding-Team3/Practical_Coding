@@ -1,7 +1,8 @@
+import json
+
+from typing import List, Dict
 from crawler import crawl_url
 from summarizer import summarize_text_first, summarize_text_remain
-import json
-from typing import List, Dict, Optional
 
 
 def load_urls(file_path: str) -> List[str]:
@@ -14,9 +15,10 @@ def load_urls(file_path: str) -> List[str]:
     Returns:
         list[str]: 줄바꿈을 제거한 URL 문자열 리스트
     """
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding="utf-8") as file:
         urls = [line.strip() for line in file if line.strip()]
     return urls
+
 
 def process_url(url: str, is_first: bool = False) -> Dict[str, str]:
     """
@@ -47,6 +49,7 @@ def process_url(url: str, is_first: bool = False) -> Dict[str, str]:
         'image_url': image_url
     }
     
+    
 def save_results(results: List[Dict[str, str]], output_file: str = 'results.json'):
     """
     처리 결과를 JSON 파일로 저장하는 함수
@@ -58,10 +61,12 @@ def save_results(results: List[Dict[str, str]], output_file: str = 'results.json
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent = 2)
 
+
 def main():
     """
     메인 함수 : URL 목록을 읽어 크롤링하고 요약한 후 결과를 저장
     """
+    
     # URL load
     file_path = 'url.txt'
     urls = load_urls(file_path)
