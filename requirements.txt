@@ -2,6 +2,6 @@
 beautifulsoup4
 requests
 python-dotenv
-google-enerativeai
+google-generativeai
 lxml
 html5lib
