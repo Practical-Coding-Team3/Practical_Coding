@@ -2,7 +2,6 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 from typing import List, Dict, Optional
-import math
 
 # .env 파일에서 API key 받아오기
 load_dotenv()
@@ -48,14 +47,14 @@ def split_text(text: str, max_length: int = 30000) -> List[str]:
         
     return chunks
 
-def summarize_text_first(text: str, metadata:Optional[Dict[str, str]] = None) -> str :
+
+def summarize_text_first(text: str) -> str :
     """
-    주어진 본문을 Gemini API를 통해 시각적으로 구분된 블록 형태로 자세히 요약하는 함수
+    주어진 본문을 Gemini API를 통해 자세히 요약하는 함수
     (뉴스, 공지, 블로그 등 모든 종류의 본문에 대해 동작)
 
     Args:
         text (str): 요약하고자 하는 원문 텍스트
-        metadata (Optional[Dict[str, str]], optional): 웹페이지의 메타데이터
 
     Returns:
         str: Gemini가 생성한 요약 결과
@@ -86,18 +85,17 @@ def summarize_text_first(text: str, metadata:Optional[Dict[str, str]] = None) ->
         
             response = model.generate_content(prompt)
             summaries.append(response.text.strip())
-            return "\n\n".join(summaries)
+            
+        return "\n\n".join(summaries)
 
     except Exception as e:
         print(f"[Error] Failed to summarize: {e}")
         return "Failed to summarize"
     
+    
 def summarize_text_remain(text: str) -> str:
     """
-    긴 텍스트 전체를 한 번만 요약하여 3줄의 핵심 헤드라인 형태로 반환하는 함수.
-
-    일반적으로 텍스트가 너무 길 경우 여러 청크로 나눈 뒤 각각 요약을 생성하지만,
-    이 함수는 전체 내용을 한 번에 Gemini 모델에 전달하여 단일 3줄 요약만 생성하도록 한다.
+    주어진 본문을 요약하여 3줄의 핵심 헤드라인 형태로 요약하는 함수
 
     이 함수는 다음과 같은 포맷으로 결과를 반환한다:
     1. "첫 번째 핵심 요약"
@@ -112,7 +110,7 @@ def summarize_text_remain(text: str) -> str:
              에러가 발생할 경우 "Failed to summarize"를 반환.
     """
     try:
-        # 너무 긴 텍스트는 청크로 분할 (기본 최대 30,000자 단위)
+        # 텍스트가 너무 길 경우 나누어서 처리
         chunks = split_text(text)
 
         # 나뉜 청크들을 다시 하나의 문자열로 합쳐서 전체 내용을 전달
