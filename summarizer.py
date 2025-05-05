@@ -1,7 +1,8 @@
+from typing import List
+from dotenv import load_dotenv
+
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
-from typing import List, Dict, Optional
 
 # .env 파일에서 API key 받아오기
 load_dotenv()
