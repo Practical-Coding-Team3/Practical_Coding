@@ -38,7 +38,7 @@ def process_url(url: str, is_first: bool = False) -> Dict[str, str]:
     
     # Summary
     if is_first:
-        summary = summarize_text_first(body_text, metadata)
+        summary = summarize_text_first(body_text)
     else:
         summary = summarize_text_remain(body_text)
     
