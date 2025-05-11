@@ -2,11 +2,13 @@
 
 import type React from "react"
 import axios from "axios"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Search, Loader2, ArrowRight, Clock, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion, AnimatePresence } from "framer-motion"
+const RECENT_SEARCHES_KEY = 'recentSearches';
+const MAX_RECENT_SEARCHES = 5; // 저장할 최대 최근 검색어 개수
 
 
 export default function SearchBrowser() {
@@ -15,33 +17,53 @@ export default function SearchBrowser() {
   const [hasSearched, setHasSearched] = useState(false)
   const [results, setResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [recentSearches] = useState(["인공지능", "웹 개발", "React", "Next.js"])
-  const [trendingSearches] = useState(["최신 기술", "프로그래밍 언어", "디자인 트렌드", "AI 개발"])
+  // const [recentSearches] = useState(["인공지능", "웹 개발", "React", "Next.js"])
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (storedSearches) {
+      setRecentSearches(JSON.parse(storedSearches));
+    }
+  }, [query])
+
+
+  const saveRecentSearch = (newQuery: string) => {
+    if (newQuery.trim() === '') return;
+    // 기존 검색어 목록 불러오기
+    const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY);
+    const recentSearches = storedSearches ? JSON.parse(storedSearches) : [];
+    // 중복된 검색어 제거 후 새로운 검색어 추가
+    const updatedSearches = [
+      newQuery,
+      ...recentSearches.filter((q: string) => q !== newQuery),
+    ].slice(0, MAX_RECENT_SEARCHES);
+    // 업데이트된 목록 로컬 스토리지에 저장
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updatedSearches));
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!query.trim()) return
-
     setIsSearching(true)
-   
-    const response = await axios.post("http://localhost:8000/text", { text: query });
-  
+    console.log(inputRef.current?.value)
+    saveRecentSearch(query);
 
-
+    // const response = await axios.post("http://localhost:8000/text", { text: query });
     // 검색 효과를 위한 타임아웃
     setTimeout(() => {
       // 가상 검색 결과
       const mockResults = [
         {
           id: 1,
-         
+
           description: "이것은 첫 번째 검색 결과입니다. 여기에는 검색어와 관련된 자세한 정보가 표시됩니다.",
           url: "https://example.com/result1",
           category: "웹사이트",
         },
         {
           id: 2,
-    
+
           description:
             "두 번째 검색 결과에는 더 많은 정보와 관련 링크가 포함되어 있습니다. 사용자가 원하는 정보를 쉽게 찾을 수 있도록 도와줍니다.",
           url: "https://example.com/result2",
@@ -90,9 +112,8 @@ export default function SearchBrowser() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 transition-all duration-300">
       <div className="max-w-5xl mx-auto">
         <div
-          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${
-            hasSearched ? "pt-4" : "pt-[25vh]"
-          }`}
+          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${hasSearched ? "pt-4" : "pt-[25vh]"
+            }`}
         >
           {!hasSearched && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
@@ -150,33 +171,39 @@ export default function SearchBrowser() {
                 </div>
               </div>
 
-              <div>
-                <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-2">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  <span>인기 검색어</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {trendingSearches.map((term, index) => (
-                    <button
-                      key={index}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-800 rounded-full text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setQuery(term)
-                        handleSearch(new Event("submit") as any)
-                      }}
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
           <AnimatePresence>
             {hasSearched && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 space-y-4">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+               
+                {hasSearched && (
+                  <div className="mt-8">
+                    <div className="mb-6">
+                      <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-2">
+                        <Clock className="h-4 w-4 mr-2" />
+                        <span>최근 검색어</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {recentSearches.map((term, index) => (
+                          <button
+                            key={index}
+                            className="px-3 py-1.5 bg-white dark:bg-slate-800 rounded-full text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            onClick={() => {
+                              setQuery(term)
+                              handleSearch(new Event("submit") as any)
+                            }}
+                          >
+                            {term}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                   "{query}"에 대한 검색 결과 {results.length}개
                 </p>
 
