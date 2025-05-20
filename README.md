@@ -43,7 +43,7 @@ POST /summarize
 ```json
 {
   "text": "여기에 본문 텍스트",
-  "detail": true
+  "detail": true // true: 자세히 요약, false: 3줄 요약
 }
 ```
 
@@ -62,7 +62,7 @@ POST /process_url
 ```json
 {
   "url": "https://example.com/article",
-  "is_first": true
+  "is_first": true  // true : 메인 url, false : sub url
 }
 ```
 
