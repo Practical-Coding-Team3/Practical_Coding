@@ -1,7 +1,10 @@
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+import os
+from dotenv import load_dotenv
 
-API_KEY: str = "AIzaSyBg2BUbeNqBn92jqy7Cp34Q5LrbSWMAT8E"
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 MODEL_ID = "gemini-2.0-flash"
 
 TEST_TEXT_1 = "오늘 춘천시 날씨는 어때?" # 테스트용 문자열 1
@@ -22,11 +25,6 @@ def api_request(text):
             response_modalities=["TEXT"],
         )
     )
-
-    print(response.text)
-    # for each in response.candidates[0].content.parts:
-    #     print(each.text)
-    # print(response.candidates[0].grounding_metadata.search_entry_point.rendered_content)
 
 if __name__ == "__main__":
     api_request(TEST_TEXT_1)
