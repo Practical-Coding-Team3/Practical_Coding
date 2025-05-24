@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 from utils.crawler import crawl_url
 from utils.summarizer import summarize_text_first, summarize_text_remain
-from main import process_url
+
 from pydantic import BaseModel
 from typing import Dict, Optional
 
