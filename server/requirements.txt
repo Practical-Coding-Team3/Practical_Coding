@@ -2,3 +2,11 @@ aiohttp
 fastapi==0.110.0
 uvicorn==0.29.0
 pydantic==2.7.1
+beautifulsoup4
+requests
+python-dotenv
+google-generativeai
+lxml
+html5lib
+uvicorn
+fastapi

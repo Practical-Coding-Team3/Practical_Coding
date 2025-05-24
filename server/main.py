@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from routers import text_api
+from routers import Summary
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -14,4 +15,4 @@ app.add_middleware(
 
 
 app.include_router(text_api.router)
-
+app.include_router(Summary.router)
