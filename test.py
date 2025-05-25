@@ -1,7 +1,7 @@
 import requests
 
 url = "http://127.0.0.1:8000/text/"
-data = {"text": "하마에 대해서 찾아봐"}
+data = {"text": "내일 춘천 날씨에 대해 알려줘"}
 
 response = requests.post(url, json=data)
 

@@ -1,5 +1,6 @@
 from konlpy.tag import Hannanum
-from server.routers.api import add_category
+from server.routers.api import add_category, add_related_word
+from rank_bm25 import BM25Okapi
 import json
 
 """
@@ -17,28 +18,20 @@ def filter_pos(pos, allow_pos):
 def remove_stopwords(words):
     # 불용어 제거
     stopwords = [ # 불필요한 문자 필터
-        "음", "어", "것", "거", "수", "좀", "같은", "정도", "요청", "내용",
-        "어디", "누구", "디", "면", "게", "냐", "가", "이", "그", "저"
+        "내", "음", "어", "것", "거", "수", "좀", "같은", "정도", "요청", "내용",
+        "어디", "누구", "디", "면", "게", "냐", "가", "이", "그", "저", "뭐", "뭔지"
     ]
     return [word for word in words if word not in stopwords]
 
-def find_category(core_words, json_path=JSON_PATH):
-    with open(json_path, 'r', encoding='utf-8') as f:
-        category_dict = json.load(f)
-
-    index = category_dict.get("index", {})
-    for word in core_words:
-        if word in index:
-            return index[word]
-    return "Failed"
-
-def get_related_info(category, ):
+def get_related_info(category, json_path=JSON_PATH):
+    """
+    카테고리 추가 -> 관련 단어 찾기
+    """
     with open(JSON_PATH, 'r', encoding='utf-8') as f:
         category_dict = json.load(f)
 
     category_info = category_dict.get("category_info", {})
     return category_info.get(category, {}).get("related", [])
-
 
 def get_category_and_related_info(filtered, json_path=JSON_PATH):
     """
@@ -58,7 +51,42 @@ def get_category_and_related_info(filtered, json_path=JSON_PATH):
             category = index[word]
             related_info = category_info.get(category, {}).get("related", [])
             return category, related_info
-    return "기타", []
+    return "해당 없음", []
+
+def not_found_category(core_word, json_path=JSON_PATH):
+    category = add_category(core_word)
+    #category = new_category.split(":")[1].strip()
+
+    with open(JSON_PATH, 'r+', encoding='utf-8') as f:
+        category_dict = json.load(f)
+        if "index" not in category_dict:
+            category_dict["index"] = {}
+        if isinstance(core_word, list):
+            for word in core_word:
+                category_dict["index"][word] = category
+        else:
+            category_dict["index"][core_word] = category
+        f.seek(0)
+        json.dump(category_dict, f, ensure_ascii=False, indent=4)
+        f.truncate()
+
+    return category
+
+def not_found_related_word(category, json_path=JSON_PATH):
+    new_related_word = add_related_word(category)
+    new_related_word_list = [word.strip() for word in new_related_word.split(',')]
+
+    with open(json_path, 'r+', encoding='utf-8') as f:
+        category_dict = json.load(f)
+        if category not in category_dict["category_info"]:
+            category_dict["category_info"][category] = {"related": []}
+
+        category_dict["category_info"][category]["related"] = new_related_word_list
+        f.seek(0)
+        json.dump(category_dict, f, ensure_ascii=False, indent=4)
+        f.truncate()
+
+    return new_related_word_list
 
 def extract_with_konlpy(text):
     hananum = Hannanum()
