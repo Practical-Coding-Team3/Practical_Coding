@@ -19,12 +19,94 @@ export default function SearchBrowser() {
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [selectedResult, setSelectedResult] = useState<any>(null)
 
+  // 스택 형태로 모달 상태 관리
+  const [resultStack, setResultStack] = useState<any[]>([])
+
+  // 모달 닫기 (스택 pop)
+  const handleCloseModal = () => {
+    setResultStack((prev) => prev.slice(0, -1))
+  }
+
+  // 현재 모달에 표시할 내용
+  const currentResult = resultStack[resultStack.length - 1]
+
+
   useEffect(() => {
     const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY)
     if (storedSearches) {
       setRecentSearches(JSON.parse(storedSearches))
     }
   }, [query])
+
+  // 링크를 적용할 단어 목록(모의)
+  const keywordLinks: Record<string, string> = {
+    분야: "https://example.com/definition/분야",
+    출처: "https://example.com/definition/출처",
+    동향: "https://example.com/definition/동향",
+  }
+
+  // 어려운 단어 설명 페이지(모의)
+  const keywordDetails: Record<string, any> = {
+    분야: {
+      id: "분야",
+      title: `"분야"의 의미`,
+      description: "분야는 지식이나 활동이 나누어진 특정 영역을 의미합니다.",
+      fullDescription:
+        "‘분야’는 특정한 전문 영역이나 주제를 지칭합니다. 예: 의료 분야, 교육 분야 등으로 나뉘며, 이 용어는 조직화된 주제나 활동 범위를 나타냅니다.",
+      url: "https://example.com/definition/분야",
+      category: "어려운 단어",
+      image: "/placeholder.svg?height=200&width=300",
+      publishDate: "2024년 1월 20일",
+      readTime: "1분 읽기",
+    },
+    출처: {
+      id: "출처",
+      title: `"출처"의 의미`,
+      description: "출처는 어떤 정보나 자료가 나온 곳을 의미합니다.",
+      fullDescription:
+        "‘출처’는 정보나 인용이 어디에서 유래했는지를 나타냅니다. 신뢰할 수 있는 출처는 콘텐츠의 신뢰도를 높여줍니다.",
+      url: "https://example.com/definition/출처",
+      category: "어려운 단어",
+      image: "/placeholder.svg?height=200&width=300",
+      publishDate: "2024년 1월 21일",
+      readTime: "1분 읽기",
+    },
+    동향: {
+      id: "동향",
+      title: `"동향"의 의미`,
+      description: "동향은 어떤 주제나 현상의 변화나 움직임을 말합니다.",
+      fullDescription:
+        "‘동향’은 사회, 산업, 기술 등의 분야에서 나타나는 변화의 흐름을 의미합니다. 예를 들어 ‘기술 동향’은 기술이 어떤 방향으로 발전하고 있는지를 설명합니다.",
+      url: "https://example.com/definition/동향",
+      category: "어려운 단어",
+      image: "/placeholder.svg?height=200&width=300",
+      publishDate: "2024년 1월 22일",
+      readTime: "1분 읽기",
+    },
+  }
+
+
+  // 단어 강조 및 클릭 시 모달 스택에 push
+  function highlightKeywords(text: string): React.ReactNode[] {
+    const parts = text.split(new RegExp(`(${Object.keys(keywordDetails).join("|")})`, "g"))
+    return parts.map((part, index) => {
+      if (keywordDetails[part]) {
+        return (
+          <button
+            key={index}
+            className="text-purple-600 underline hover:opacity-80"
+            onClick={(e) => {
+              e.stopPropagation()
+              setResultStack((prev) => [...prev, keywordDetails[part]])
+            }}
+          >
+            {part}
+          </button>
+        )
+      }
+      return <span key={index}>{part}</span>
+    })
+  }
 
   const saveRecentSearch = (newQuery: string) => {
     if (newQuery.trim() === "") return
@@ -147,9 +229,8 @@ export default function SearchBrowser() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 transition-all duration-300">
       <div className="max-w-5xl mx-auto">
         <div
-          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${
-            hasSearched ? "pt-4" : "pt-[25vh]"
-          }`}
+          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${hasSearched ? "pt-4" : "pt-[25vh]"
+            }`}
         >
           {!hasSearched && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
@@ -221,7 +302,8 @@ export default function SearchBrowser() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all border border-slate-100 dark:border-slate-700 mb-8 cursor-pointer"
-                  onClick={() => setSelectedResult(results.main)}
+                  // onClick={() => setSelectedResult(results.main)}
+                  onClick={() => setResultStack((prev) => [...prev, results.main])}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-1">
@@ -263,7 +345,8 @@ export default function SearchBrowser() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 + index * 0.1 }}
                       className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-slate-100 dark:border-slate-700 group cursor-pointer"
-                      onClick={() => setSelectedResult(result)}
+                      // onClick={() => setSelectedResult(result)}
+                      onClick={() => setResultStack((prev) => [...prev, result])}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -299,10 +382,12 @@ export default function SearchBrowser() {
       </div>
 
       {/* 모달 */}
-      {selectedResult && (
+      {/* {selectedResult && ( */}
+      {currentResult && (
         <div
           className="fixed inset-0 backdrop-blur-sm bg-white/5 bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedResult(null)}
+          // onClick={() => setSelectedResult(null)}
+          onClick={handleCloseModal}
         >
           <div
             className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -312,14 +397,18 @@ export default function SearchBrowser() {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 text-purple-800 dark:text-purple-100 rounded-full font-medium">
-                    {selectedResult.category}
+                    {/* {selectedResult.category} */}
+                    {currentResult.category}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{selectedResult.publishDate}</span>
+                  {/* <span className="text-xs text-slate-500 dark:text-slate-400">{selectedResult.publishDate}</span> */}
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{currentResult.publishDate}</span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">•</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{selectedResult.readTime}</span>
+                  {/* <span className="text-xs text-slate-500 dark:text-slate-400">{selectedResult.readTime}</span> */}
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{currentResult.readTime}</span>
                 </div>
                 <button
-                  onClick={() => setSelectedResult(null)}
+                  // onClick={() => setSelectedResult(null)}
+                  onClick={handleCloseModal}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   <X className="h-6 w-6" />
@@ -327,26 +416,35 @@ export default function SearchBrowser() {
               </div>
 
               <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white leading-tight">
-                {selectedResult.title}
+                {/* {selectedResult.title} */}
+                {currentResult.title}
               </h2>
 
-              {selectedResult.image && (
+              {/* {selectedResult.image && ( */}
+              {currentResult.image && (
                 <img
-                  src={selectedResult.image || "/placeholder.svg"}
+                  // src={selectedResult.image || "/placeholder.svg"}
+                  src={currentResult.image || "/placeholder.svg"}
                   alt="상세 이미지"
                   className="w-full h-64 object-cover rounded-xl mb-4"
                 />
               )}
 
-              <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed text-lg">
+              {/* <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed text-lg">
                 {selectedResult.fullDescription || selectedResult.description}
+              </p> */}
+              <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed text-lg">
+                {/* {highlightKeywords(selectedResult.fullDescription || selectedResult.description)} */}
+                {highlightKeywords(currentResult.fullDescription || currentResult.description)}
               </p>
 
               <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{selectedResult.url}</span>
+                  {/* <span className="text-sm text-slate-500 dark:text-slate-400">{selectedResult.url}</span> */}
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{currentResult.url}</span>
                   <Button
-                    onClick={() => window.open(selectedResult.url, "_blank")}
+                    // onClick={() => window.open(selectedResult.url, "_blank")}
+                    onClick={() => window.open(currentResult.url, "_blank")}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     사이트 방문하기
