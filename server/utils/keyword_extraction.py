@@ -99,24 +99,7 @@ def extract_with_konlpy(text):
     core_words = list(dict.fromkeys(core_words))
 
     category = get_category_and_related_info(core_words)
-    print(core_words, category)
     if category == "Failed":
-        print(add_category(core_words))
+        add_category(core_words)
 
     return core_words
-
-def extract_with_bm25(text):
-    return 0
-
-def keyword_extraction(text):
-    if len(text) < 100:  # 길이 기준 (문자 수)
-        return extract_with_konlpy(text)
-    else:
-        return extract_with_bm25(text)
-
-
-if __name__ == "__main__":
-    text = keyword_extraction(RAW_TEXT)
-
-    print(text)
-
