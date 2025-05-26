@@ -1,7 +1,5 @@
 from fastapi import FastAPI
-from routers import text_api
-from routers import Summary
-from routers import keyword
+from server.routers import text_api
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -14,6 +12,4 @@ app.add_middleware(
     allow_headers=["*"],  # 모든 HTTP Header 허용
 )
 
-app.include_router(keyword.router)
 app.include_router(text_api.router)
-app.include_router(Summary.router)
