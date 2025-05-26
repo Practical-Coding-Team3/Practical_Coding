@@ -16,7 +16,7 @@ def add_related_word(category):
         google_search=GoogleSearch()
     )
     prompt = (
-        f'"{category}"에 적합한 관련 단어 3개만 쉼표 없이 한 줄로, 따옴표 없이, 다른 말 없이 출력해줘.\n'
+        f'"{category}"에 적합한 관련 단어 1~5개를 쉼표 없이 한 줄로, 따옴표 없이, 다른 말 없이 출력해줘.\n'
         '예: 동물 → 서식지, 종, 특징'
     )
     response = client.models.generate_content(
