@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from server.routers.keyword_extraction import keyword_extraction, get_category_and_related_info, not_found_category, not_found_related_word, get_related_info
+from server.utils.keyword_extraction import keyword_extraction, get_category_and_related_info, not_found_category, not_found_related_word, get_related_info
 from server.routers.api import related_url, add_category
 import json
 

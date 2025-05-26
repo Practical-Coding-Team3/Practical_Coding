@@ -7,10 +7,6 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY")
 MODEL_ID = "gemini-2.0-flash"
 
-TEST_TEXT_1 = "오늘 춘천시 날씨는 어때?" # 테스트용 문자열 1
-TEST_TEXT_2 = "강원대 주변 음식점 찾아줘" # 테스트용 문자열 2
-
-
 def api_request(text):
     client = genai.Client(api_key=API_KEY)
 
@@ -25,6 +21,3 @@ def api_request(text):
             response_modalities=["TEXT"],
         )
     )
-
-if __name__ == "__main__":
-    api_request(TEST_TEXT_1)

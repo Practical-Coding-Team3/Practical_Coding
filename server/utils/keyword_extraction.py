@@ -88,7 +88,7 @@ def not_found_related_word(category, json_path=JSON_PATH):
 
     return new_related_word_list
 
-def extract_with_konlpy(text):
+def keyword_extraction(text):
     hananum = Hannanum()
     pos = hananum.pos(text)
 
