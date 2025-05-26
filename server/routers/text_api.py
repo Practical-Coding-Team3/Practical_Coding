@@ -5,7 +5,7 @@ import json
 
 router = APIRouter(prefix="/text", tags=["text"])
 
-@router.post("/")
+@router.post("/core_word")
 async def receive_text(request: Request):
     data = await request.json()
     text = data.get("text")
