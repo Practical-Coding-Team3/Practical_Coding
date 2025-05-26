@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from routers import text_api
-from routers import Summary
-from routers import keyword
+from server.routers import text_api
+from server.routers import Summary
+from server.routers import keyword
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()

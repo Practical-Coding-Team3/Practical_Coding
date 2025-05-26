@@ -76,12 +76,3 @@ def related_url(keyword, related_words):
         )
     )
     return response.text.strip()
-
-
-if __name__ == "__main__":
-    text = "오늘 춘천 날씨에 대해서 알려줘"
-    response = related_url("사과", ["함유량", "요리", "네이버 쇼핑"])
-    print(response)
-    # related_word = "춘천 날씨"
-    # url = related_url(related_word)
-    # print(url)
