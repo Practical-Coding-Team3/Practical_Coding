@@ -51,22 +51,24 @@ def related_url(keyword, related_words):
     related_word: 관련 단어 리스트
     각 관련 단어 마다 반복분 돌려서 keyword + related_word1, 2, 3로 검색
     """
-    search_word_1 = keyword + " " + related_words[0]
-    search_word_2 = keyword + " " + related_words[1]
-    search_word_3 = keyword + " " + related_words[2]
-
-    print(search_word_1, search_word_2, search_word_3)
 
     client = genai.Client(api_key=API_KEY)
     google_search_tool = Tool(
         google_search=GoogleSearch()
     )
-    prompt = (
-        f'"{keyword}"에 관한 정보와 {keyword}와 관련된 키워드에 대해'
-        '실제 한국어 웹사이트 URL을 알려줘. 형식은 다음처럼 정리해줘:'
-        f'Main: {keyword}에 대한 URL - sub1: {search_word_1}에 대한 URL - sub2: {search_word_2}에 대한 URL - sub3 : {search_word_3}에 대한 URL'
-        '다른 말은 하지말고 오직 URL만 알려줘.'
-    )
+    # 프롬프트 조립
+    # 관련 단어가 유동적이기에 아래와 같이 구현
+    prompt_lines = [f'"{keyword}"에 관한 정보와 {keyword}와 관련된 키워드에 대해 실제 한국어 웹사이트 URL을 알려줘.']
+    prompt_lines.append('형식은 다음처럼 정리해줘:')
+    prompt_lines.append(f'{keyword}: {keyword}에 대한 URL')
+
+    for word in related_words:
+        prompt_lines.append(f'{keyword} {word}: {keyword} {word}에 대한 URL')
+
+    prompt_lines.append('다른 건 출력하지 말고, URL만 출력해줘. 각 항목 당 URL 1개로 부탁해')
+
+    prompt = "\n".join(prompt_lines)
+
     response = client.models.generate_content(
         model=MODEL_ID,
         contents= prompt,

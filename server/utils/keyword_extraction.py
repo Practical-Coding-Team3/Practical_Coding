@@ -8,8 +8,7 @@ text에서 core_words 찾기
 core_words: text의 명사들
 """
 
-RAW_TEXT = "비가 오는지 확인해봐"  # 테스트용 문자열 1
-JSON_PATH = "./server/routers/category_map.json"
+JSON_PATH = "./server/utils/category_map.json"
 #JSON_PATH = "category_map.json"  # JSON 파일 경
 def filter_pos(pos, allow_pos):
     # 품사 필터링
