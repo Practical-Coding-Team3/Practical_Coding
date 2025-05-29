@@ -80,7 +80,7 @@ def related_url(keywords, related_words, action_word):
         for word in related_words:
             prompt_lines.append(f'{k} {word}: {k} {word} {action_word}에 대한 URL')
 
-    prompt_lines.append('다른 건 출력하지 말고, 각 항목 당 URL 1개씩, JSON 형태로 출력해줘')
+    prompt_lines.append('마크다운도 넣지 말고, 다른 건 출력하지 말고, 각 항목 당 URL 1개씩 출력해줘')
     prompt = "\n".join(prompt_lines)
 
 
@@ -92,13 +92,5 @@ def related_url(keywords, related_words, action_word):
             response_modalities=["TEXT"],
         )
     )
-    text = response.text.strip()
-    text = clean_json_text(text)
+    return response.text.strip()
 
-    if not text:
-        return {}
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        print("JSON 디코딩 실패:", text)
-        return {}
