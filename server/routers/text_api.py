@@ -35,8 +35,5 @@ async def receive_text(request: Request):
         else:
             sub_url = sub_url + " | " + urls[i]
 
-    """
-    sub url이 5개 이상이면 자르기
-    """
 
     return {"received_text": text, "core_word": core_word, "main": main_url, "sub": sub_url}
