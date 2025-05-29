@@ -2,7 +2,15 @@ from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 import os
 from dotenv import load_dotenv
+import json
+import re
 
+def clean_json_text(text):
+    # ```json 또는 ```로 감싼 부분만 추출
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if match:
+        text = match.group(1)
+    return text
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
 MODEL_ID = "gemini-2.0-flash"
@@ -46,7 +54,7 @@ def add_category(keyword):
     )
     return response.text.strip()
 
-def related_url(keyword, related_words):
+def related_url(keywords, related_words, action_word):
     """
     related_word: 관련 단어 리스트
     각 관련 단어 마다 반복분 돌려서 keyword + related_word1, 2, 3로 검색
@@ -58,16 +66,23 @@ def related_url(keyword, related_words):
     )
     # 프롬프트 조립
     # 관련 단어가 유동적이기에 아래와 같이 구현
-    prompt_lines = [f'"{keyword}"에 관한 정보와 {keyword}와 관련된 키워드에 대해 실제 한국어 웹사이트 URL을 알려줘.']
-    prompt_lines.append('형식은 다음처럼 정리해줘:')
-    prompt_lines.append(f'{keyword}: {keyword}에 대한 URL')
+    prompt_lines = []
 
-    for word in related_words:
-        prompt_lines.append(f'{keyword} {word}: {keyword} {word}에 대한 URL')
+    keyword = ""
 
-    prompt_lines.append('다른 건 출력하지 말고, URL만 출력해줘. 각 항목 당 URL 1개로 부탁해')
+    for k in keywords:
+        keyword = k + " " + keyword
 
+    prompt_lines.append(f'"{keyword}"에 관한 정보와 {keyword}와 관련된 키워드에 대해 실제 한국 웹사이트 URL을 알려줘.')
+    for k in keywords:
+        prompt_lines.append('형식은 다음처럼 정리해줘:')
+        prompt_lines.append(f'{k}: {k}에 대한 URL')
+        for word in related_words:
+            prompt_lines.append(f'{k} {word}: {k} {word} {action_word}에 대한 URL')
+
+    prompt_lines.append('다른 건 출력하지 말고, 각 항목 당 URL 1개씩, JSON 형태로 출력해줘')
     prompt = "\n".join(prompt_lines)
+
 
     response = client.models.generate_content(
         model=MODEL_ID,
@@ -77,4 +92,13 @@ def related_url(keyword, related_words):
             response_modalities=["TEXT"],
         )
     )
-    return response.text.strip()
+    text = response.text.strip()
+    text = clean_json_text(text)
+
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        print("JSON 디코딩 실패:", text)
+        return {}
