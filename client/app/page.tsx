@@ -101,12 +101,13 @@ export default function SearchBrowser() {
   }
 
   // URL 문자열을 파싱하는 함수
-  function parseUrls(rawText: string): string[] {
-    const urlRegex = /https:\/\/[^\s|)\]]+/g; // https로 시작하고 공백, |, ), ]에서 끝나는 문자열
+  function parseUrls(main: string, sub: string): string[] {
+    const combinedText = `${main} | ${sub}`;
+    const urlRegex = /https:\/\/[^\s|)\]]+/g;
     const urls = new Set<string>();
 
     let match;
-    while ((match = urlRegex.exec(rawText)) !== null) {
+    while ((match = urlRegex.exec(combinedText)) !== null) {
       let url = match[0];
 
       // 중복된 마크다운 링크 처리: https://...](https://...) 구조에서 앞부분만 남김
@@ -147,7 +148,7 @@ export default function SearchBrowser() {
 
     console.log(response.data);
 
-    const parsed_urls = parseUrls(response.data.url);
+    const parsed_urls = parseUrls(response.data.main, response.data.sub);
     console.log(parsed_urls);
 
 
