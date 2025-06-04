@@ -2,8 +2,18 @@ from fastapi import APIRouter, Request
 from server.utils.keyword_extraction import keyword_extraction, get_category_and_related_info, not_found_category, not_found_related_word, get_related_info
 from server.routers.api import related_url
 import json
+import httpx
 import re
 
+import httpx
+
+async def is_valid_url(url):
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.head(url)
+            return response.status_code < 400
+    except Exception:
+        return False
 router = APIRouter(prefix="/text", tags=["text"])
 @router.post("/core_word")
 async def receive_text(request: Request):
@@ -23,17 +33,22 @@ async def receive_text(request: Request):
 
     urls = re.findall(r'https?://[^\s\])]+', raw_url)
 
+    valid_urls = []
+    for url in urls:
+        if await is_valid_url(url):
+            valid_urls.append(url)
+
     main_url = ""
     sub_url = ""
-    for i in range(len(urls)):
-        if i ==0:
-            main_url = urls[i]
+    for i in range(len(valid_urls)):
+        if i == 0:
+            main_url = valid_urls[i]
         elif i == 1:
-            sub_url = urls[i]
+            sub_url = valid_urls[i]
         elif i % (1 + len(related_word)) == 0:
-            main_url = main_url + " | " + urls[i]
+            main_url = main_url + " | " + valid_urls[i]
         else:
-            sub_url = sub_url + " | " + urls[i]
+            sub_url = sub_url + " | " + valid_urls[i]
 
 
     return {"received_text": text, "core_word": core_word, "main": main_url, "sub": sub_url}
