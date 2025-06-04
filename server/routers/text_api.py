@@ -5,15 +5,17 @@ import json
 import httpx
 import re
 
-import httpx
 
-async def is_valid_url(url):
+async def resolve_final_url(url: str) -> str:
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            response = await client.head(url)
-            return response.status_code < 400
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            if response.status_code < 400:
+                return str(response.url)  # Final redirected URL
+            else:
+                return None
     except Exception:
-        return False
+        return None
 router = APIRouter(prefix="/text", tags=["text"])
 @router.post("/core_word")
 async def receive_text(request: Request):
@@ -35,8 +37,10 @@ async def receive_text(request: Request):
 
     valid_urls = []
     for url in urls:
-        if await is_valid_url(url):
-            valid_urls.append(url)
+        final_url = await resolve_final_url(url)
+        if final_url:
+            print("Resolved URL:", final_url)
+            valid_urls.append(final_url)
 
     main_url = ""
     sub_url = ""

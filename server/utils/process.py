@@ -1,5 +1,5 @@
-from utils.crawler import crawl_url
-from utils.summarizer import summarize_text_first, summarize_text_remain
+from server.routers.crawler import crawl_url
+from server.routers.summarizer import summarize_text_first, summarize_text_remain
 
 def process_url(url: str, is_first: bool = False):
     metadata, body_text, image_url = crawl_url(url)
