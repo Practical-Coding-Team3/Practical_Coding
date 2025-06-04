@@ -1,19 +1,27 @@
 from konlpy.tag import Hannanum
 from server.routers.api import add_category, add_related_word
-from rank_bm25 import BM25Okapi
 import json
-
 """
 text에서 core_words 찾기
 core_words: text의 명사들
 """
 
-RAW_TEXT = "비가 오는지 확인해봐"  # 테스트용 문자열 1
-JSON_PATH = "./server/routers/category_map.json"
+JSON_PATH = "./server/utils/category_map.json"
 #JSON_PATH = "category_map.json"  # JSON 파일 경
 def filter_pos(pos, allow_pos):
     # 품사 필터링
     return [word for word, tag in pos if tag in allow_pos]
+
+def remove_action_nouns(words):
+    action_word = ""
+    action_nouns = ["검색", "조회", "확인", "설명", "추천", "정보", "알림", "질문", "내용"]
+
+    for word in words:  # 행위 단어 추출
+        if word in action_nouns:
+            action_word = word + " "
+            words.remove(word)
+
+    return words, action_word
 
 def remove_stopwords(words):
     # 불용어 제거
@@ -92,14 +100,17 @@ def keyword_extraction(text):
     hananum = Hannanum()
     pos = hananum.pos(text)
 
+    action_word = "" # 행위 단어
     # allow_pos = ['N', 'P', 'A']  # Hannanum 품사 태그
     allow_pos = 'N'
     core_words = filter_pos(pos, allow_pos)
     core_words = remove_stopwords(core_words)
     core_words = list(dict.fromkeys(core_words))
 
+    core_words, action_word = remove_action_nouns(core_words)  # 행위 단어 제거
     category = get_category_and_related_info(core_words)
+
     if category == "Failed":
         add_category(core_words)
 
-    return core_words
+    return core_words, action_word
