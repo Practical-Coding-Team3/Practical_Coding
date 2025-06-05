@@ -6,6 +6,8 @@ import { Search, Loader2, ArrowRight, Clock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion, AnimatePresence } from "framer-motion"
+import axios from 'axios';
+import { title } from "process"
 
 const RECENT_SEARCHES_KEY = "recentSearches"
 const MAX_RECENT_SEARCHES = 5 // 저장할 최대 최근 검색어 개수
@@ -18,6 +20,64 @@ export default function SearchBrowser() {
   const [isSearching, setIsSearching] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [selectedResult, setSelectedResult] = useState<any>(null)
+
+  type Concept = {
+    title: string;
+    summary: string;
+    keywords: string[];
+  };
+
+  const [conceptStack, setConceptStack] = useState<Concept[]>([]);
+  const [allDifficultWords, setAllDifficultWords] = useState<string[][]>([]);
+
+  // 클릭된 단어를 모달 스택에 추가, 키워드 추출과 단어 의미 요청
+  const openConcept = async (word: string) => {
+    try {
+      const res = await axios.post("http://localhost:8000/keyword/explain", { word: word });
+
+      const summary = res.data.summary;
+
+      const keywordRes = await axios.post("http://localhost:8000/keyword", {
+        text: summary,
+      });
+
+      let raw = keywordRes.data.received_text.trim();
+      const match = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      if (match && match[1]) raw = match[1].trim();
+
+      let keywords: string[] = [];
+      try {
+        keywords = JSON.parse(raw);
+      } catch (err) {
+        console.error("키워드 파싱 실패:", err);
+      }
+
+      setConceptStack(prev => [...prev, {
+        title: word,
+        summary,
+        keywords
+      }]);
+    } catch (err) {
+      console.error("openConcept 에러:", err);
+    }
+  };
+
+  // 맨 위 모달 닫기
+  const closeLastConcept = () => {
+    setConceptStack(prev => prev.slice(0, -1));
+  };
+
+  // 주어진 텍스트에서 특정 키워드에 해당하는 단어를 찾아
+  // 클릭 가능한 <span> 요소로 하이라이트
+  function highlightConcepts(text: string, keywords: string[], onClick: (word: string) => void) {
+    const regex = new RegExp(`(${keywords.join('|')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      keywords.includes(part)
+        ? <span key={i} className="text-purple-600 underline cursor-pointer" onClick={() => onClick(part)}>{part}</span>
+        : part
+    );
+  }
 
   useEffect(() => {
     const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY)
@@ -40,6 +100,43 @@ export default function SearchBrowser() {
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updatedSearches))
   }
 
+  // URL 문자열을 파싱하는 함수
+  function parseUrls(main: string, sub: string): string[] {
+    const combinedText = `${main} | ${sub}`;
+    const urlRegex = /https:\/\/[^\s|)\]]+/g;
+    const urls = new Set<string>();
+
+    let match;
+    while ((match = urlRegex.exec(combinedText)) !== null) {
+      let url = match[0];
+
+      // 중복된 마크다운 링크 처리: https://...](https://...) 구조에서 앞부분만 남김
+      const markdownDupMatch = url.match(/(https:\/\/[^\]]+)\]\(https:\/\/[^\)]+\)/);
+      if (markdownDupMatch) {
+        url = markdownDupMatch[1];
+      }
+
+      // 괄호, 대괄호, 따옴표, 마침표 제거
+      url = url.replace(/[\])]+$/, '');
+      urls.add(url);
+    }
+
+    return Array.from(urls);
+  }
+
+  // 날짜를 문자열로 반환하는 함수
+  function formatDateString(dateStr?: string): string {
+    if (!dateStr || dateStr.length !== 14) {
+      return "날짜 정보 없음";
+    }
+
+    const year = dateStr.slice(0, 4);
+    const month = dateStr.slice(4, 6);
+    const day = dateStr.slice(6, 8);
+
+    return `${year}년 ${parseInt(month)}월 ${parseInt(day)}일`;
+  }
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!query.trim()) return
@@ -47,109 +144,143 @@ export default function SearchBrowser() {
     console.log(inputRef.current?.value)
     saveRecentSearch(query)
 
-    // const response = await axios.post("http://localhost:8000/text", { text: query });
-    // 검색 효과를 위한 타임아웃
-    setTimeout(() => {
-      const mainResult = {
-        id: "main",
-        title: `"${query}"에 대한 주요 정보`,
-        description: `${query}에 대한 가장 관련성 높은 정보입니다. 이 결과는 사용자가 찾고 있는 핵심 내용을 포함하고 있으며, 신뢰할 수 있는 출처에서 제공됩니다. 여기에는 상세한 설명과 함께 관련 링크, 이미지, 그리고 추가 정보가 포함되어 있습니다.`,
-        fullDescription: `${query}에 대한 상세한 정보입니다. 이 주제는 현재 많은 관심을 받고 있으며, 다양한 분야에서 활용되고 있습니다. 전문가들은 이 분야의 발전 가능성을 높게 평가하고 있으며, 앞으로도 지속적인 연구와 개발이 이루어질 것으로 예상됩니다. 이 정보는 신뢰할 수 있는 출처에서 수집되었으며, 최신 동향과 연구 결과를 반영하고 있습니다.`,
-        url: "https://main-source.com",
-        category: "주요 결과",
-        image: "/placeholder.svg?height=200&width=300",
-        publishDate: "2024년 1월 15일",
-        readTime: "5분 읽기",
+    const response = await axios.post("http://localhost:8000/text/core_word", { text: query });
+
+    console.log(response.data);
+
+    const parsed_urls = parseUrls(response.data.main, response.data.sub);
+    console.log(parsed_urls);
+
+
+    type CrawlData = {
+      content: string;
+      image_url: string;
+      metadata: any; // 어떤 구조든 허용
+    };
+
+    const raw_crawl_datas: CrawlData[] = []; // 결과 저장용 배열
+
+    for (const url of parsed_urls) {
+      const res = await axios.post("http://localhost:8000/summary/crawl", { url });
+      raw_crawl_datas.push(res.data);
+    }
+
+    console.log(raw_crawl_datas);
+
+    // 크롤링 불가 페이지, metadata가 없는 페이지 제거한 배열
+    const crawl_datas: CrawlData[] = raw_crawl_datas.filter(data => {
+      const isValidMetadata =
+        data.metadata &&
+        typeof data.metadata === 'object' &&
+        !Array.isArray(data.metadata) &&
+        Object.keys(data.metadata).length > 0;
+
+      return data.content !== "Cannot Crawling page" && isValidMetadata;
+    });
+
+    console.log(crawl_datas);
+
+    // 요약 결과 저장용 배열
+    const descriptions: string[] = [];
+    const fullDescriptions: string[] = [];
+
+    // 모든 crawl_datas에 대해 요약 요청
+    for (const data of crawl_datas) {
+      if (data.content === "No meaningful content found.") { // content가 없으면 빈 문자열 넣기
+        descriptions.push("");
+        fullDescriptions.push("");
+        continue;
       }
 
-      // 가상 검색 결과
-      const mockResults = [
-        {
-          id: 1,
-          title: `"${query}"에 대한 검색 결과 1`,
-          description: "이것은 첫 번째 검색 결과입니다. 여기에는 검색어와 관련된 자세한 정보가 표시됩니다.",
-          fullDescription: `${query}에 대한 첫 번째 상세 정보입니다. 이 내용은 기본적인 개념부터 고급 응용까지 포괄적으로 다루고 있으며, 실무에서 바로 활용할 수 있는 실용적인 정보를 제공합니다. 또한 최신 트렌드와 업계 동향을 반영하여 독자들이 현재 상황을 정확히 파악할 수 있도록 도와줍니다.`,
-          url: "https://example.com/result1",
-          category: "웹사이트",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 12일",
-          readTime: "3분 읽기",
-        },
-        {
-          id: 2,
-          title: `"${query}"에 대한 검색 결과 2`,
-          description:
-            "두 번째 검색 결과에는 더 많은 정보와 관련 링크가 포함되어 있습니다. 사용자가 원하는 정보를 쉽게 찾을 수 있도록 도와줍니다.",
-          fullDescription: `${query}에 대한 두 번째 상세 정보로, 다양한 관점에서의 분석과 해석을 제공합니다. 이 자료는 여러 전문가들의 의견을 종합하여 작성되었으며, 객관적이고 균형 잡힌 시각을 제시합니다. 독자들이 주제에 대해 깊이 있게 이해할 수 있도록 구체적인 사례와 데이터를 포함하고 있습니다.`,
-          url: "https://example.com/result2",
-          category: "블로그",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 10일",
-          readTime: "4분 읽기",
-        },
-        {
-          id: 3,
-          title: `"${query}"에 대한 검색 결과 3`,
-          description:
-            "세 번째 검색 결과는 사용자의 검색어와 가장 관련성이 높은 정보를 제공합니다. 여기에는 자세한 설명과 함께 유용한 링크가 포함되어 있습니다.",
-          fullDescription: `${query}에 대한 세 번째 상세 정보로, 실용적인 가이드와 단계별 설명을 제공합니다. 이 콘텐츠는 초보자도 쉽게 따라할 수 있도록 구성되었으며, 각 단계마다 상세한 설명과 주의사항을 포함하고 있습니다. 또한 자주 발생하는 문제들과 해결 방법도 함께 제시하여 실용성을 높였습니다.`,
-          url: "https://example.com/result3",
-          category: "뉴스",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 8일",
-          readTime: "6분 읽기",
-        },
-        {
-          id: 4,
-          title: `"${query}"에 대한 검색 결과 4`,
-          description:
-            "네 번째 검색 결과는 사용자가 찾고 있는 정보에 대한 추가적인 내용을 제공합니다. 이 결과는 검색어와 관련된 다양한 측면을 다룹니다.",
-          fullDescription: `${query}에 대한 네 번째 상세 정보로, 최신 연구 결과와 업계 동향을 중심으로 작성되었습니다. 이 자료는 미래 전망과 발전 가능성을 다루며, 전문가들의 예측과 분석을 포함하고 있습니다. 독자들이 변화하는 환경에 대비할 수 있도록 실용적인 조언과 전략을 제시합니다.`,
-          url: "https://example.com/result4",
-          category: "포럼",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 5일",
-          readTime: "5분 읽기",
-        },
-        {
-          id: 5,
-          title: `"${query}"에 대한 검색 결과 5`,
-          description:
-            "다섯 번째 검색 결과는 사용자의 검색어와 관련된 최신 정보를 제공합니다. 이 결과는 최근에 업데이트된 내용을 포함하고 있습니다.",
-          fullDescription: `${query}에 대한 다섯 번째 상세 정보로, 심화 학습을 원하는 사용자를 위한 고급 내용을 다룹니다. 이 자료는 이론적 배경부터 실제 적용 사례까지 포괄적으로 설명하며, 학술적 근거와 실증적 데이터를 바탕으로 작성되었습니다. 전문가 수준의 지식을 원하는 독자들에게 깊이 있는 통찰을 제공합니다.`,
-          url: "https://example.com/result5",
-          category: "학술자료",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 3일",
-          readTime: "8분 읽기",
-        },
-        {
-          id: 6,
-          title: `"${query}"에 대한 검색 결과 6`,
-          description:
-            "여섯 번째 검색 결과는 사용자의 검색어와 관련된 심층적인 분석을 제공합니다. 이 결과는 주제에 대한 깊이 있는 이해를 원하는 사용자에게 유용합니다.",
-          fullDescription: `${query}에 대한 여섯 번째 상세 정보로, 다양한 시각과 접근 방법을 제시합니다. 이 콘텐츠는 국내외 사례를 비교 분석하여 작성되었으며, 문화적, 사회적 맥락을 고려한 해석을 제공합니다. 독자들이 글로벌 관점에서 주제를 이해할 수 있도록 폭넓은 정보와 인사이트를 담고 있습니다.`,
-          url: "https://example.com/result6",
-          category: "비디오",
-          image: "/placeholder.svg?height=200&width=300",
-          publishDate: "2024년 1월 1일",
-          readTime: "7분 읽기",
-        },
-      ]
+      try {
+        const [descRes, fullDescRes] = await Promise.all([
+          axios.post("http://localhost:8000/summary/summarize", {
+            text: data.content,
+            detail: false
+          }),
+          axios.post("http://localhost:8000/summary/summarize", {
+            text: data.content,
+            detail: true
+          })
+        ]);
 
-      setResults({ main: mainResult, sub: mockResults })
+        descriptions.push(descRes.data.summary);
+        fullDescriptions.push(fullDescRes.data.summary);
+      } catch (error) {
+        console.error("요약 실패:", error);
+        descriptions.push("요약 실패");
+        fullDescriptions.push("요약 실패");
+      }
+    }
+
+    // 검색 효과를 위한 타임아웃
+    setTimeout(() => {
+      if (crawl_datas.length === 0) {
+        console.warn("유효한 크롤링 결과가 없습니다.");
+        setResults({ main: undefined, sub: [] });
+        setHasSearched(true);
+        setIsSearching(false);
+        return;
+      }
+
+      const mainResult = {
+        id: "main",
+        title: crawl_datas[0].metadata.title,
+        description: descriptions[0],
+        fullDescription: fullDescriptions[0],
+        url: crawl_datas[0].metadata.url,
+        category: crawl_datas[0].metadata.type,
+        image: crawl_datas[0].image_url,
+        publishDate: formatDateString(crawl_datas[0].metadata.regDate),
+        readTime: "5분 읽기"
+      }
+
+      const subResults = crawl_datas.slice(1).map((item, index) => ({
+        id: index + 1,
+        title: item.metadata.title,
+        description: descriptions[index + 1],
+        fullDescription: fullDescriptions[index + 1],
+        url: item.metadata.url,
+        category: item.metadata.type,
+        image: item.image_url,
+        publishDate: formatDateString(item.metadata.regDate),
+        readTime: "5분 읽기"
+      }));
+
+
+      setResults({ main: mainResult, sub: subResults })
       setHasSearched(true)
       setIsSearching(false)
     }, 800) // 검색 효과를 위한 지연 시간
+
+    const allDifficultWords: string[][] = [];
+
+    for (const fullDesc of fullDescriptions) {
+      try {
+        const keywordRes = await axios.post("http://localhost:8000/keyword", {
+          text: fullDesc,
+        });
+
+        let raw = keywordRes.data.received_text.trim();
+        const match = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (match && match[1]) raw = match[1].trim();
+
+        const keywords = JSON.parse(raw);
+        allDifficultWords.push(keywords);
+      } catch (e) {
+        allDifficultWords.push([]);
+      }
+    }
+
+    setAllDifficultWords(allDifficultWords)
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 transition-all duration-300">
       <div className="max-w-5xl mx-auto">
         <div
-          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${
-            hasSearched ? "pt-4" : "pt-[25vh]"
-          }`}
+          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-in-out ${hasSearched ? "pt-4" : "pt-[25vh]"
+            }`}
         >
           {!hasSearched && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
@@ -339,7 +470,11 @@ export default function SearchBrowser() {
               )}
 
               <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed text-lg">
-                {selectedResult.fullDescription || selectedResult.description}
+                {highlightConcepts(
+                  selectedResult.fullDescription || selectedResult.description,
+                  allDifficultWords[selectedResult.id === "main" ? 0 : selectedResult.id] || [],
+                  openConcept
+                )}
               </p>
 
               <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
@@ -358,6 +493,21 @@ export default function SearchBrowser() {
           </div>
         </div>
       )}
+
+      {/* conceptStack 배열에 담긴 단어 요약들을 순서대로 렌더링 */}
+      {conceptStack.map((concept, idx) => (
+        <div key={idx} className="fixed inset-0 z-[1000] bg-black/30 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl max-w-xl p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4">{concept.title}</h2>
+            <p className="text-slate-600 dark:text-slate-300">
+              {highlightConcepts(concept.summary, concept.keywords || [], openConcept)}
+            </p>
+            <button onClick={closeLastConcept} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      ))}
     </main>
   )
 }
