@@ -3,6 +3,7 @@ from server.routers import text_api
 from server.routers import crawler, summarizer, process_url
 from server.routers import Summary
 from server.routers import keyword
+from server.routers import explain
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -18,6 +19,7 @@ app.add_middleware(
 app.include_router(keyword.router)
 app.include_router(text_api.router)
 app.include_router(Summary.router)
+app.include_router(explain.router) 
 
 app.include_router(crawler.router, prefix="/crawl")
 app.include_router(summarizer.router, prefix="/summarize")
