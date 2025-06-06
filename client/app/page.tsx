@@ -70,14 +70,17 @@ export default function SearchBrowser() {
   // 주어진 텍스트에서 특정 키워드에 해당하는 단어를 찾아
   // 클릭 가능한 <span> 요소로 하이라이트
   function highlightConcepts(text: string, keywords: string[], onClick: (word: string) => void) {
+    const lowerKeywords = keywords.map(k => k.toLowerCase());
     const regex = new RegExp(`(${keywords.join('|')})`, 'gi');
     const parts = text.split(regex);
+
     return parts.map((part, i) =>
-      keywords.includes(part)
+      lowerKeywords.includes(part.toLowerCase())
         ? <span key={i} className="text-purple-600 underline cursor-pointer" onClick={() => onClick(part)}>{part}</span>
         : part
     );
   }
+
 
   useEffect(() => {
     const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY)
